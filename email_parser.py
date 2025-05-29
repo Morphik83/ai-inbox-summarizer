@@ -1,107 +1,86 @@
 import os
 import imaplib
-import email
-from email.mime.text import MIMEText
-import smtplib
-from dotenv import load_dotenv
-from langchain.llms import OpenAI
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
 from datetime import datetime, timedelta
-import dateutil.parser
+from openai import OpenAI
+import email
 
-# Load environment variables
+from dotenv import load_dotenv
 load_dotenv()
 
-class EmailParser:
+
+
+class EmailParserConnect:
     def __init__(self):
-        self.llm = OpenAI(temperature=0.7)
-        self.prompt = PromptTemplate(
-            input_variables=["emails"],
-            template="""Analyze the following emails and provide a concise summary.
-            Focus on important information and action items.
-            Format the summary in bullet points.
-            
-            Emails:
-            {emails}
-            
-            Summary:"""
+        self.email_user = os.getenv('EMAIL_USER')
+        self.email_password = os.getenv('EMAIL_PASSWORD')
+        self.client = OpenAI(
+            api_key=os.getenv('OPENAI_API_KEY')
         )
-        self.chain = LLMChain(llm=self.llm, prompt=self.prompt)
 
     def connect_to_email(self):
         """Connect to email server and return connection"""
         mail = imaplib.IMAP4_SSL('imap.gmail.com')
-        mail.login(os.getenv('EMAIL_USER'), os.getenv('EMAIL_PASSWORD'))
+        mail.login(self.email_user, self.email_password)
         mail.select('inbox')
         return mail
 
-    def fetch_recent_emails(self, mail, days=7):
-        """Fetch emails from the last X days"""
-        date = (datetime.now() - timedelta(days=days)).strftime("%d-%b-%Y")
-        _, messages = mail.search(None, f'SINCE {date}')
-        
-        emails = []
-        for num in messages[0].split():
-            _, msg = mail.fetch(num, '(RFC822)')
-            email_message = email.message_from_bytes(msg[0][1])
-            
-            # Extract basic email info
-            subject = email_message['subject']
-            sender = email_message['from']
-            
-            # Get email body
-            if email_message.is_multipart():
-                body = ''
-                for part in email_message.walk():
+    def fetch_today_emails(self, mail):
+        """Fetch emails from today only"""
+        today = datetime.now().strftime("%d-%b-%Y")
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%d-%b-%Y")
+        _, messages = mail.search(None, f'SINCE "{today}" BEFORE "{tomorrow}"')
+        return messages[0].split()
+
+    def summarize_emails(self, mail):
+        email_ids = self.fetch_today_emails(mail)
+        bodies = []
+        for eid in email_ids:
+            _, msg_data = mail.fetch(eid, '(RFC822)')
+            msg = email.message_from_bytes(msg_data[0][1])
+            body = ""
+            if msg.is_multipart():
+                for part in msg.walk():
                     if part.get_content_type() == "text/plain":
-                        body = part.get_payload(decode=True).decode()
-                        break
+                        body += part.get_payload(decode=True).decode(errors='ignore')
             else:
-                body = email_message.get_payload(decode=True).decode()
-            
-            emails.append({
-                'subject': subject,
-                'sender': sender,
-                'body': body
-            })
-        
-        return emails
+                body = msg.get_payload(decode=True).decode(errors='ignore')
+            bodies.append(body)
 
-    def generate_summary(self, emails):
-        """Generate AI summary of emails"""
-        email_text = "\n\n".join([
-            f"Subject: {e['subject']}\nFrom: {e['sender']}\n\n{e['body']}"
-            for e in emails
-        ])
-        
-        return self.chain.run(emails=email_text)
+        combined = "\n\n---\n\n".join(bodies)
+        prompt = f"""
+    You are an expert financial analyst and writer. Read the following email/report and produce a layman-friendly summary with these sections:
 
-    def send_summary_email(self, summary):
-        """Send the summary email"""
-        msg = MIMEText(summary)
-        msg['Subject'] = "Daily Email Summary"
-        msg['From'] = os.getenv('EMAIL_USER')
-        msg['To'] = os.getenv('EMAIL_USER')
-        
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.starttls()
-            server.login(os.getenv('EMAIL_USER'), os.getenv('EMAIL_PASSWORD'))
-            server.send_message(msg)
+    ---
+    ## 📜 What Happened?
+    - Briefly explain the main news or ruling.
 
-    def run(self):
-        """Main function to run the email parsing process"""
-        try:
-            mail = self.connect_to_email()
-            emails = self.fetch_recent_emails(mail)
-            summary = self.generate_summary(emails)
-            self.send_summary_email(summary)
-            print("Summary email sent successfully!")
-        except Exception as e:
-            print(f"An error occurred: {str(e)}")
-        finally:
-            mail.logout()
+    ## 🔮 What’s Next?
+    - Predict possible next steps or consequences.
+
+    ## 💰 Money Matters
+    - Explain financial impacts (refunds, debt, tax plans, etc).
+
+    ## 📉 Market Reactions
+    - Note how markets, bonds, and USD reacted.
+    - FX (DXY,EUR/USD, GBP/USD, USD/CHF, USD/JPY)
+
+    ## 🧠 Takeaways
+    - Summarize the key points in a table.
+
+    ---
+    Here is the email/report:
+    {combined}
+    """
+        response = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an expert financial analyst and writer. Respond in clear, structured, layman-friendly language, using markdown and emojis for clarity."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        print(response.choices[0].message.content)
 
 if __name__ == "__main__":
-    parser = EmailParser()
-    parser.run()
+    parser_connect = EmailParserConnect()
+    mail = parser_connect.connect_to_email()    
+    parser_connect.summarize_emails(mail)   
