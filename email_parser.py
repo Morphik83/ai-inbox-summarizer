@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-
 class EmailParserConnect:
     def __init__(self):
         self.email_user = os.getenv('EMAIL_USER')
@@ -50,18 +49,27 @@ class EmailParserConnect:
 
         combined = "\n\n---\n\n".join(emails_formatted)
         prompt = f"""
-You are a senior financial analyst. 
-You will be given a set of emails containing financial news and market analysis for today.
+You are an expert financial analyst and writer. Read the following email/report and produce a layman-friendly summary with these sections:
 
-**Your task:**
-- Combine all the information into a single, well-structured summary.
-- Eliminate duplicate or redundant points.
-- Give special attention to the impact on FX (foreign exchange) markets.
-- Pay attention to the impact on the USD.
-- Present the summary in clear, concise, layman-friendly language.
-- Use markdown formatting with sections for: Main Events, FX Market Impact, and Key Takeaways.
+---
+## 📜 What Happened?
+- Briefly explain the main news or ruling.
 
-Here are today's emails:
+## 🔮 What’s Next?
+- Predict possible next steps or consequences.
+
+## 💰 Money Matters
+- Explain financial impacts (refunds, debt, tax plans, etc).
+
+## 📉 Market Reactions
+- Note how markets, bonds, and USD reacted.
+- FX (DXY,EUR/USD, GBP/USD, USD/CHF, USD/JPY)
+
+## 🧠 Takeaways
+- Summarize the key points in a table.
+
+---
+Here is the email/report:
 {combined}
 """
         response = self.client.chat.completions.create(
@@ -73,7 +81,7 @@ Here are today's emails:
         )
         print(response.choices[0].message.content)
 
-    def poll_for_new_emails(self, poll_interval=60):
+    def poll_for_new_emails(self, poll_interval=120):
         print("Starting email polling...")
         last_seen = set()
         while True:
