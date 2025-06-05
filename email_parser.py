@@ -37,15 +37,36 @@ class EmailParserConnect:
             _, msg_data = mail.fetch(eid, '(RFC822)')
             msg = email.message_from_bytes(msg_data[0][1])
             subject = msg['subject'] or '(No Subject)'
-            body = ""
-            print(f"DEBUG: Summarizing email: {subject}\n{'-'*40}")
+            date_header = msg['date']
+            # Try to parse the date header
+            try:
+                from email.utils import parsedate_to_datetime
+                dt = parsedate_to_datetime(date_header) if date_header else datetime.now()
+            except Exception:
+                dt = datetime.now()
+            weekday = dt.strftime('%a')
+            time_str = dt.strftime('%H:%M')
+            html_body = ""
+            # Add visual separation and header
+            print("\n\n\n" + f"[{weekday}][{time_str}][{subject}]\n" + "-"*40)
             if msg.is_multipart():
                 for part in msg.walk():
-                    if part.get_content_type() == "text/plain":
-                        body += part.get_payload(decode=True).decode(errors='ignore')
+                    if part.get_content_type() == "text/html":
+                        html_body += part.get_payload(decode=True).decode(errors='ignore')
             else:
-                body = msg.get_payload(decode=True).decode(errors='ignore')
-            emails_formatted.append(f"Subject: {subject}\nBody: {body}")
+                if msg.get_content_type() == "text/html":
+                    html_body = msg.get_payload(decode=True).decode(errors='ignore')
+            # Extract and clean HTML (only after collecting all parts)
+            if html_body:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(html_body, 'html.parser')
+                for tag in soup(["script", "style"]):
+                    tag.decompose()
+                body = soup.get_text(separator="\n")
+                body = '\n'.join([line.strip() for line in body.splitlines() if line.strip()])
+            else:
+                body = "[No HTML body found]"
+            emails_formatted.append(f"[{weekday}][{time_str}][{subject}]\n\nSubject: {subject}\nBody: {body}")
 
         combined = "\n\n---\n\n".join(emails_formatted)
         prompt = f"""
