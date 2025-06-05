@@ -49,31 +49,42 @@ class EmailParserConnect:
 
         combined = "\n\n---\n\n".join(emails_formatted)
         prompt = f"""
-You are an expert financial analyst and writer. Read the following email/report and produce a layman-friendly summary with these sections:
+You are an expert financial analyst and macroeconomist. Your job is to read the following email/report and produce a deep-dive, layman-friendly summary with actionable insights. 
+
+**Instructions:**
+- Do NOT just repeat headlines or bullet points.
+- Analyze the underlying causes, market context, and potential consequences.
+- Compare to recent trends or similar events if relevant.
+- Highlight what is surprising, counterintuitive, or most important for investors.
+- Use markdown, tables, and emojis for clarity.
+- Each section should contain original analysis, not repetition.
+- Always try to explain in a layman-friendly economic concepts that are mentioned in the email.
 
 ---
-## 📜 What Happened?
-- Briefly explain the main news or ruling.
+### 🧾 Main Takeaways
+Summarize the key points, but add your own expert interpretation and context.
 
-## 🔮 What’s Next?
-- Predict possible next steps or consequences.
+### 💰 Market Implications
+Explain how this news might affect markets (FX, bonds, stocks, etc.), with reasoning and comparisons to similar past events.
 
-## 💰 Money Matters
-- Explain financial impacts (refunds, debt, tax plans, etc).
+### 🔍 Key Economic Context
+Describe the broader economic background, trends, and drivers. What is different or notable here?
 
-## 📉 Market Reactions
-- Note how markets, bonds, and USD reacted.
-- FX (DXY,EUR/USD, GBP/USD, USD/CHF, USD/JPY)
+### ⚠️ Risks & Uncertainties
+List major risks, uncertainties, or things to watch for, explaining why they matter.
 
-## 🧠 Takeaways
-- Summarize the key points in a table.
+### 📝 Final Thoughts (Simple Terms)
+Give a bottom-line, plain-English summary for a non-expert, focusing on what to watch next and why.
+
+### 📝 Economy-concepts explanation
+Give a bottom-line, plain-English explanation of the economy-concepts that are mentioned in the email.
 
 ---
 Here is the email/report:
 {combined}
 """
         response = self.client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4.1",
             messages=[
                 {"role": "system", "content": "You are an expert financial analyst and writer. Respond in clear, structured, layman-friendly language, using markdown and emojis for clarity."},
                 {"role": "user", "content": prompt}
