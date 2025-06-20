@@ -139,17 +139,20 @@ Here is the email/report:
             time.sleep(poll_interval)
 
     def send_email(self, subject, body, recipient=None):
-        recipient = recipient or self.summary_recipient
+        recipients = recipient or self.summary_recipient
+        # Support comma-separated emails in env
+        if isinstance(recipients, str):
+            recipients = [r.strip() for r in recipients.split(',') if r.strip()]
         msg = MIMEMultipart()
         msg['From'] = self.email_user
-        msg['To'] = recipient
+        msg['To'] = ', '.join(recipients)
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
         try:
             with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
                 server.login(self.email_user, self.email_password)
-                server.sendmail(self.email_user, recipient, msg.as_string())
-            print(f"Summary email sent to {recipient}!")
+                server.sendmail(self.email_user, recipients, msg.as_string())
+            print(f"Summary email sent to {recipients}!")
         except Exception as e:
             print(f"Failed to send summary email: {e}")
 
