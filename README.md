@@ -26,7 +26,7 @@ This project connects to your email inbox, fetches emails (e.g., from today), an
      EMAIL_USER=your-email@gmail.com
      EMAIL_PASSWORD=your-app-password
      OPENAI_API_KEY=your-openai-api-key
-     SUMMARY_RECIPIENT=recipient@email.com  # Optional, defaults to EMAIL_USER
+     SUMMARY_RECIPIENT=recipient@email.com,another@email.com  # Optional, comma-separated for multiple recipients; defaults to EMAIL_USER
      ```
    - For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833) if 2FA is enabled.
 
