@@ -4,10 +4,12 @@ This project connects to your email inbox, fetches emails (e.g., from today), an
 
 ## Features
 - Connects to Gmail (or any IMAP) inbox
-- Fetches emails from a configurable time window (e.g., today)
+- Fetches emails from a configurable time window (e.g., today or last 24 hours)
 - Extracts and cleans the HTML part of each email (ignores plain text)
 - Uses BeautifulSoup to remove scripts/styles and extract readable content
 - Generates structured, markdown-formatted, layman-friendly financial summaries using OpenAI GPT-4.1
+- **Sends a daily email summary at 21:00 (9PM) automatically**
+- Supports manual/test summary sending on demand
 - Environment-based configuration for security
 
 ## Setup
@@ -24,17 +26,33 @@ This project connects to your email inbox, fetches emails (e.g., from today), an
      EMAIL_USER=your-email@gmail.com
      EMAIL_PASSWORD=your-app-password
      OPENAI_API_KEY=your-openai-api-key
+     SUMMARY_RECIPIENT=recipient@email.com  # Optional, defaults to EMAIL_USER
      ```
    - For Gmail, use an [App Password](https://support.google.com/accounts/answer/185833) if 2FA is enabled.
 
 ## Usage
 
-Run the script to fetch and summarize today's emails:
+### Daily Automated Summary (Recommended)
+By default, the script will send a daily summary email at 21:00 (9PM) every day, containing all emails received in the last 24 hours:
 ```bash
 python email_parser.py
 ```
-- The script will always use the HTML part of emails for summarization, ensuring the richest possible content.
-- No debug output is printed; only the final summary appears in the console.
+- Leave the script running; it will wait and send the summary at the scheduled time each day.
+
+### Manual/Test Run
+To send the summary immediately (for testing), temporarily edit the `__main__` section in `email_parser.py`:
+```python
+# parser_connect.run_daily_summary_scheduler()
+parser_connect.send_daily_summary_now()
+```
+Then run:
+```bash
+python email_parser.py
+```
+This will send a summary right away using the last 24 hours of emails.
+
+- The script always uses the HTML part of emails for summarization, ensuring the richest possible content.
+- Summaries are sent to the configured recipient via email.
 
 ## Customization
 - Adjust the time window or mailbox in `email_parser.py` as needed.
