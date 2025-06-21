@@ -186,12 +186,35 @@ Here is the email/report:
         )
         mail.logout()
 
+    def list_daily_summary_email_titles(self):
+        print("Listing email subjects and timestamps for the daily summary (last 24h):")
+        mail = self.connect_to_email()
+        email_ids = self.fetch_last_24h_emails(mail)
+        if not email_ids:
+            print("No emails found in the last 24 hours.")
+            mail.logout()
+            return
+        from email.utils import parsedate_to_datetime
+        for eid in email_ids:
+            _, msg_data = mail.fetch(eid, '(RFC822)')
+            msg = email.message_from_bytes(msg_data[0][1])
+            subject = msg['subject'] or '(No Subject)'
+            date_header = msg['date']
+            try:
+                dt = parsedate_to_datetime(date_header) if date_header else None
+            except Exception:
+                dt = None
+            print(f"- {subject} | {dt if dt else '[No Date]'}")
+        mail.logout()
+
 
 if __name__ == "__main__":
     parser_connect = EmailParserConnect()
     # Uncomment the next line to run the polling loop as before
     # parser_connect.poll_for_new_emails(poll_interval=120)
     # Run the daily summary scheduler for 21:00
-    parser_connect.run_daily_summary_scheduler()
+    # parser_connect.run_daily_summary_scheduler()
+    # For testing: list emails included in the daily summary
+    parser_connect.list_daily_summary_email_titles()
     # For testing: send the daily summary immediately
     # parser_connect.send_daily_summary_now()
