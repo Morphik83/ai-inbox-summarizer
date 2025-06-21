@@ -179,11 +179,67 @@ Here is the email/report:
             print("No emails found in the last 24 hours for summary.")
             return
         summary = self.summarize_emails(mail, email_ids, return_summary=True)
+        # Build the analyzed emails list
+        from email.header import decode_header
+        from email.utils import parsedate_to_datetime
+        def decode_mime_words(s):
+            if not s:
+                return '(No Subject)'
+            decoded_parts = decode_header(s)
+            return ''.join([
+                part.decode(enc or 'utf-8') if isinstance(part, bytes) else part
+                for part, enc in decoded_parts
+            ])
+        analyzed_list = []
+        for eid in email_ids:
+            _, msg_data = mail.fetch(eid, '(RFC822)')
+            msg = email.message_from_bytes(msg_data[0][1])
+            subject = decode_mime_words(msg['subject'])
+            date_header = msg['date']
+            try:
+                dt = parsedate_to_datetime(date_header) if date_header else None
+            except Exception:
+                dt = None
+            dt_str = dt.strftime('%m-%d %H:%M') if dt else '[No Date]'
+            analyzed_list.append(f"- {dt_str} | {subject}")
+        analyzed_section = "\n\n---\n\n**Analyzed Emails (last 24h):**\n" + '\n'.join(analyzed_list)
+        summary_with_list = summary + analyzed_section
         self.send_email(
             subject=f"Daily Email Summary ({datetime.now().strftime('%Y-%m-%d')})",
-            body=summary,
+            body=summary_with_list,
             recipient=self.summary_recipient
         )
+        mail.logout()
+
+    def list_daily_summary_email_titles(self):
+        print("Listing email subjects and timestamps for the daily summary (last 24h):")
+        mail = self.connect_to_email()
+        email_ids = self.fetch_last_24h_emails(mail)
+        if not email_ids:
+            print("No emails found in the last 24 hours.")
+            mail.logout()
+            return
+        from email.utils import parsedate_to_datetime
+        from email.header import decode_header
+        def decode_mime_words(s):
+            if not s:
+                return '(No Subject)'
+            decoded_parts = decode_header(s)
+            return ''.join([
+                part.decode(enc or 'utf-8') if isinstance(part, bytes) else part
+                for part, enc in decoded_parts
+            ])
+        for eid in email_ids:
+            _, msg_data = mail.fetch(eid, '(RFC822)')
+            msg = email.message_from_bytes(msg_data[0][1])
+            subject = decode_mime_words(msg['subject'])
+            date_header = msg['date']
+            try:
+                dt = parsedate_to_datetime(date_header) if date_header else None
+            except Exception:
+                dt = None
+            dt_str = dt.strftime('%m-%d %H:%M') if dt else '[No Date]'
+            print(f"- {dt_str} | {subject}")
         mail.logout()
 
 
@@ -192,6 +248,8 @@ if __name__ == "__main__":
     # Uncomment the next line to run the polling loop as before
     # parser_connect.poll_for_new_emails(poll_interval=120)
     # Run the daily summary scheduler for 21:00
-    parser_connect.run_daily_summary_scheduler()
+    # parser_connect.run_daily_summary_scheduler()
+    # For testing: list emails included in the daily summary
+    # parser_connect.list_daily_summary_email_titles()
     # For testing: send the daily summary immediately
-    # parser_connect.send_daily_summary_now()
+    parser_connect.send_daily_summary_now()
