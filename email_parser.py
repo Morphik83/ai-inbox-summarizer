@@ -43,19 +43,28 @@ class EmailParserConnect:
 
 
     def summarize_emails(self, mail, email_ids, return_summary=False):
+        from email.header import decode_header
+        from email.utils import parsedate_to_datetime
+        from bs4 import BeautifulSoup
+        def decode_mime_words(s):
+            if not s:
+                return '(No Subject)'
+            decoded_parts = decode_header(s)
+            return ''.join([
+                part.decode(enc or 'utf-8') if isinstance(part, bytes) else part
+                for part, enc in decoded_parts
+            ])
         emails_formatted = []
         for eid in email_ids:
             _, msg_data = mail.fetch(eid, '(RFC822)')
             msg = email.message_from_bytes(msg_data[0][1])
-            subject = msg['subject'] or '(No Subject)'
+            subject = decode_mime_words(msg['subject'])
             date_header = msg['date']
             try:
-                from email.utils import parsedate_to_datetime
-                dt = parsedate_to_datetime(date_header) if date_header else datetime.now()
+                dt = parsedate_to_datetime(date_header) if date_header else None
             except Exception:
-                dt = datetime.now()
-            weekday = dt.strftime('%a')
-            time_str = dt.strftime('%H:%M')
+                dt = None
+            dt_str = dt.strftime('%m-%d %H:%M') if dt else '[No Date]'
             html_body = ""
             if msg.is_multipart():
                 for part in msg.walk():
@@ -65,7 +74,6 @@ class EmailParserConnect:
                 if msg.get_content_type() == "text/html":
                     html_body = msg.get_payload(decode=True).decode(errors='ignore')
             if html_body:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(html_body, 'html.parser')
                 for tag in soup(["script", "style"]):
                     tag.decompose()
@@ -73,22 +81,22 @@ class EmailParserConnect:
                 body = '\n'.join([line.strip() for line in body.splitlines() if line.strip()])
             else:
                 body = "[No HTML body found]"
-            emails_formatted.append(f"[{weekday}][{time_str}][{subject}]\n\nSubject: {subject}\nBody: {body}")
-
-        combined = "\n\n---\n\n".join(emails_formatted)
+            emails_formatted.append(f"[{dt_str}] {subject}\n{body}")
+        combined = '\n\n---\n\n'.join(emails_formatted)
         prompt = f"""
-You are an expert financial analyst and macroeconomist. Your job is to read the following email/report and produce a deep-dive, layman-friendly summary with actionable insights. 
+You are an expert financial analyst and macroeconomist. Your job is to read the following set of emails/reports (from the last 24h) and produce a SINGLE, concise, deep-dive, layman-friendly one-pager summary with actionable insights. 
 
 **Instructions:**
-- Do NOT just repeat headlines or bullet points.
+- Synthesize and compare across all emails. Do NOT just summarize each one separately.
+- Focus on what is most important, surprising, or actionable for investors.
 - Analyze the underlying causes, market context, and potential consequences.
 - Compare to recent trends or similar events if relevant.
-- Highlight what is surprising, counterintuitive, or most important for investors.
 - Use markdown, tables, and emojis for clarity.
 - Each section should contain original analysis, not repetition.
-- Always try to explain in a layman-friendly economic concepts that are mentioned in the email.
+- Always try to explain in a layman-friendly economic concepts that are mentioned in the emails.
+- The result should be a single one-pager, not a list of per-email summaries.
 
----
+----
 ### 🧾 Main Takeaways
 Summarize the key points, but add your own expert interpretation and context.
 
@@ -105,10 +113,10 @@ List major risks, uncertainties, or things to watch for, explaining why they mat
 Give a bottom-line, plain-English summary for a non-expert, focusing on what to watch next and why.
 
 ### 📝 Economy-concepts explanation
-Give a bottom-line, plain-English explanation of the economy-concepts that are mentioned in the email.
+Give a bottom-line, plain-English explanation of the economy-concepts that are mentioned in the emails.
 
----
-Here is the email/report:
+----
+Here are the emails/reports:
 {combined}
 """
         response = self.client.chat.completions.create(
