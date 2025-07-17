@@ -8,7 +8,8 @@ This project connects to your email inbox, fetches emails (e.g., from today), an
 - Extracts and cleans the HTML part of each email (ignores plain text)
 - Uses BeautifulSoup to remove scripts/styles and extract readable content
 - Generates structured, markdown-formatted, layman-friendly financial summaries using OpenAI GPT-4.1
-- **Sends a daily email summary at 21:00 (9PM) automatically**
+- **Sends a single, holistic daily summary email at 21:00 (9PM) automatically, synthesizing all emails from the last 24 hours into a concise, actionable one-pager**
+- Uses GPT-4.1 to generate a layman-friendly, fundamentals-focused, and actionable digest (not per-email summaries)
 - Supports manual/test summary sending on demand
 - Environment-based configuration for security
 
@@ -33,11 +34,12 @@ This project connects to your email inbox, fetches emails (e.g., from today), an
 ## Usage
 
 ### Daily Automated Summary (Recommended)
-By default, the script will send a daily summary email at 21:00 (9PM) every day, containing all emails received in the last 24 hours:
+By default, the script will send a daily summary email at 21:00 (9PM) every day, containing a **single, synthesized one-pager summary** of all emails received in the last 24 hours:
 ```bash
 python email_parser.py
 ```
 - Leave the script running; it will wait and send the summary at the scheduled time each day.
+- The summary is not a list of per-email summaries, but a holistic, high-level digest of all key information and context.
 
 ### Manual/Test Run
 To send the summary immediately (for testing), temporarily edit the `__main__` section in `email_parser.py`:
