@@ -141,7 +141,10 @@ Here are the emails/reports:
             new_emails = [eid for eid in email_ids if eid not in last_seen]
             if new_emails:
                 print(f"Detected {len(new_emails)} new email(s)!")
-                self.summarize_emails(mail, new_emails)
+                summary = self.summarize_emails(mail, new_emails, return_summary=True)
+                print(summary)
+                subject = f"New Email Summary ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
+                self.send_email(subject=subject, body=summary, recipient=self.summary_recipient)
             last_seen = set(email_ids)
             mail.logout()
             time.sleep(poll_interval)
@@ -254,10 +257,10 @@ Here are the emails/reports:
 if __name__ == "__main__":
     parser_connect = EmailParserConnect()
     # Uncomment the next line to run the polling loop as before
-    # parser_connect.poll_for_new_emails(poll_interval=120)
+    parser_connect.poll_for_new_emails(poll_interval=120)
     # Run the daily summary scheduler for 21:00
     # parser_connect.run_daily_summary_scheduler()
     # For testing: list emails included in the daily summary
     # parser_connect.list_daily_summary_email_titles()
     # For testing: send the daily summary immediately
-    parser_connect.send_daily_summary_now()
+    # parser_connect.send_daily_summary_now()
